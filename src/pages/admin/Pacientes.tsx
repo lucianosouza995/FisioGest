@@ -167,11 +167,12 @@ export const Pacientes: React.FC = () => {
                 onChange={(e) => {
                   const qtd = Number(e.target.value);
                   setBillingSessions(qtd);
+                  // Multiplicação corrigida aqui:
                   setBillingAmount(qtd * selectedPatientForBilling.sessionPrice);
                 }}
               />
               <Input
-                label="Valor Total (R$)"
+                label="Valor Total (R\$)"
                 type="number"
                 value={billingAmount}
                 onChange={(e) => setBillingAmount(Number(e.target.value))}

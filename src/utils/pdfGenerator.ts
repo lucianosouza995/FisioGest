@@ -16,7 +16,10 @@ export const exportReportPDF = (summaryData: BillingSummary[], periodTitle: stri
   doc.setTextColor(100);
   doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
 
-  const tableColumn = ["Paciente", "Sessões", "Datas", "Valor Devido"];
+  // Define o nome da coluna de valor baseado no título
+  const valorHeader = periodTitle.includes("Recebidos") ? "Valor Recebido" : "Valor Devido";
+  const tableColumn = ["Paciente", "Sessões", "Datas", valorHeader];
+
   const tableRows: any[][] = [];
 
   // Se summaryData estiver vazio, este loop não executa, resultando na tabela vazia

@@ -102,11 +102,52 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const updateAppointmentStatus = async (id: string, status: Appointment['status'], sessionNumber: number) => {
+        // 1. Encontra o agendamento e o paciente atuais no estado local
+        const currentApt = appointments.find(a => a.id === id);
+        if (!currentApt) return;
+
+        const currentStatus = currentApt.status;
+        const patientId = currentApt.patientId;
+        const patient = patients.find(p => p.id === patientId);
+
+        // 2. Calcula a matemática da reversão de sessões
+        let sessionAdjustment = 0;
+
+        if (currentStatus === 'agendado' && status === 'realizado') {
+            sessionAdjustment = 1; // Marcou como concluído: soma 1
+        } else if (currentStatus === 'realizado' && (status === 'agendado' || status === 'faltou')) {
+            sessionAdjustment = -1; // Desfez a marcação: subtrai 1
+        } else if (currentStatus === 'faltou' && status === 'realizado') {
+            sessionAdjustment = 1; // Estava como falta e marcou concluído: soma 1
+        }
+
+        // 3. Salva no Firebase ou no Mock local
         if (isFirebaseActive && tenantId) {
-            const docRef = getTenantDocumentRef(tenantId, COLLECTIONS.APPOINTMENTS, id);
-            if (docRef) await updateDoc(docRef, { status, sessionNumber });
+            const aptRef = getTenantDocumentRef(tenantId, COLLECTIONS.APPOINTMENTS, id);
+
+            if (aptRef) {
+                // Atualiza o agendamento
+                await updateDoc(aptRef, { status, sessionNumber });
+
+                // Atualiza o paciente (só faz a query se a matemática mudar o número de sessões)
+                if (patient && sessionAdjustment !== 0) {
+                    const patRef = getTenantDocumentRef(tenantId, COLLECTIONS.PATIENTS, patientId);
+                    const newCompletedCount = Math.max(0, patient.completedSessions + sessionAdjustment);
+                    if (patRef) await updateDoc(patRef, { completedSessions: newCompletedCount });
+                }
+            }
         } else {
+            // Lógica para o ambiente de testes (Mock)
             setAppointments(prev => prev.map(apt => apt.id === id ? { ...apt, status, sessionNumber } : apt));
+
+            if (patient && sessionAdjustment !== 0) {
+                setPatients(prev => prev.map(p => {
+                    if (p.id === patientId) {
+                        return { ...p, completedSessions: Math.max(0, p.completedSessions + sessionAdjustment) };
+                    }
+                    return p;
+                }));
+            }
         }
     };
 

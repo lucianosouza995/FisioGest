@@ -121,7 +121,7 @@ export const Faturamento: React.FC = () => {
   };
 
   // 3. NOVA FUNÇÃO DE EXPORTAÇÃO ASSÍNCRONA
-  // NOVA FUNÇÃO DE EXPORTAÇÃO (Síncrona e baseada na tela)
+  // NOVA FUNÇÃO DE EXPORTAÇÃO (Síncrona e baseada no filtro da tela)
   const handleExportPDF = () => {
     if (filteredInvoices.length === 0) {
       alert("Não há dados para exportar neste filtro.");
@@ -144,11 +144,11 @@ export const Faturamento: React.FC = () => {
       }
 
       const summary = summaryMap.get(inv.patientId)!;
-      // Soma corretamente as sessões e os valores reais lançados na tela
+      // Soma as sessões e os valores baseados apenas no filtro atual da tela
       summary.totalSessions += inv.sessionsCount;
       summary.totalAmount += inv.amount;
 
-      // Adiciona as datas para aparecerem no PDF
+      // Adiciona as datas para aparecerem no PDF (evitando duplicatas)
       if (inv.dueDate && !summary.sessionDates.includes(inv.dueDate)) {
         summary.sessionDates.push(inv.dueDate);
       }
@@ -156,7 +156,7 @@ export const Faturamento: React.FC = () => {
 
     const dadosParaPDF = Array.from(summaryMap.values());
 
-    // 2. Monta o título do PDF indicando o Filtro (Ex: "Mensal - A Receber")
+    // 2. Monta o título do PDF indicando o Filtro selecionado
     const periodTitles = {
       weekly: 'Semanal',
       biweekly: 'Quinzenal',
@@ -172,11 +172,7 @@ export const Faturamento: React.FC = () => {
 
     // 3. Envia os dados perfeitamente agregados para o gerador
     exportReportPDF(dadosParaPDF, tituloFinal);
-
   };
-
-
-
 
   return (
     <div className="space-y-4">

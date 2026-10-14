@@ -46,6 +46,7 @@ export const GlobalActions: React.FC = () => {
     const handlePatientSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const newId = `pat_${Date.now()}`;
+
         const newPatient: Patient = {
             id: newId,
             name: patName,
@@ -59,6 +60,24 @@ export const GlobalActions: React.FC = () => {
         };
 
         addPatient(newPatient);
+
+        // CORREÇÃO 1: Cria automaticamente a cobrança total do pacote para o Faturamento
+        const valorTotalPacote = patSessions * patPrice;
+
+        const newInv: Invoice = {
+            id: `inv_${Date.now()}`,
+            patientId: newId,
+            patientName: patName,
+            patientPhone: patPhone || '11999999999',
+            sessionsCount: patSessions,
+            amount: valorTotalPacote, // Valor multiplicado corretamente
+            pixKey: userProfile?.pixKey || 'lucas.fisio@fisiogest.com.br',
+            status: 'pendente',
+            dueDate: getTodayDateISO(),
+            createdAt: getTodayDateISO()
+        };
+
+        addInvoice(newInv);
 
         // Fluxo Contínuo: Pergunta se quer agendar agora
         if (window.confirm('Paciente registado com sucesso! Deseja agendar a primeira sessão agora?')) {
@@ -202,7 +221,7 @@ export const GlobalActions: React.FC = () => {
                 </form>
             </Modal>
 
-            {/* Modal 4: Fatura */}
+            {/* Modal 4: Lançar Cobrança */}
             <Modal isOpen={activeModal === 'invoice'} onClose={resetForms} title="Lançar Cobrança">
                 <form onSubmit={handleInvoiceSubmit} className="space-y-4">
                     <div className="w-full">
@@ -210,8 +229,9 @@ export const GlobalActions: React.FC = () => {
                         <select
                             value={invPatientId}
                             onChange={(e) => {
-                                setInvPatientId(e.target.value);
-                                const p = patients.find(pt => pt.id === e.target.value);
+                                const selectedId = e.target.value;
+                                setInvPatientId(selectedId);
+                                const p = patients.find(pt => pt.id === selectedId);
                                 if (p) {
                                     setInvAmount(p.sessionPrice * invSessions);
                                 }
@@ -224,8 +244,30 @@ export const GlobalActions: React.FC = () => {
                         </select>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                        <Input label="Qtd Sessões" type="number" value={invSessions} onChange={(e) => setInvSessions(Number(e.target.value))} min={1} required />
-                        <Input label="Valor (R$)" type="number" value={invAmount} onChange={(e) => setInvAmount(Number(e.target.value))} required />
+                        <Input
+                            label="Qtd Sessões"
+                            type="number"
+                            value={invSessions}
+                            onChange={(e) => {
+                                const qtd = Number(e.target.value);
+                                setInvSessions(qtd);
+
+                                // CORREÇÃO 2: Atualiza o valor dinamicamente ao digitar a Qtd de Sessões
+                                const p = patients.find(pt => pt.id === invPatientId);
+                                if (p) {
+                                    setInvAmount(p.sessionPrice * qtd);
+                                }
+                            }}
+                            min={1}
+                            required
+                        />
+                        <Input
+                            label="Valor Total (R\$)"
+                            type="number"
+                            value={invAmount}
+                            onChange={(e) => setInvAmount(Number(e.target.value))}
+                            required
+                        />
                     </div>
                     <Input label="Data de Vencimento" type="date" value={invDueDate} onChange={(e) => setInvDueDate(e.target.value)} required />
                     <Button type="submit" fullWidth>Gerar Fatura Pendente</Button>
