@@ -7,9 +7,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Função para obter o tenantId e o role (perfil) do usuário logado
+    // Função CORRIGIDA: Usa 'exists' para evitar erro se o documento do usuário ainda não existir no momento do login
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let userDoc = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userDoc) ? get(userDoc).data : null;
     }
 
     // Regras da Coleção de Usuários
@@ -26,7 +27,7 @@ service cloud.firestore {
       // Apenas o Admin da clínica pode alterar dados dela (ex: Chave PIX)
       allow write: if isAuthenticated() && getUserData().tenantId == tenantId && getUserData().role == 'admin';
 
-      // Subcoleções: Pacientes e Agendamentos (Acesso total para a equipe da clínica)
+      // Subcoleções: Pacientes e Agendamentos
       match /patients/{document=**} {
         allow read, write: if isAuthenticated() && getUserData().tenantId == tenantId;
       }

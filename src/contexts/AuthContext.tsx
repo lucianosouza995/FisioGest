@@ -15,7 +15,7 @@ interface AuthContextType {
   user: User | { uid: string; email: string; displayName?: string } | null;
   role: UserRole;
   userProfile: UserProfile | null;
-  tenantId: string | null; // Novo estado exportado
+  tenantId: string | null;
   loading: boolean;
   isFirebaseActive: boolean;
   login: (email: string, password?: string) => Promise<void>;
@@ -89,9 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 role: 'admin',
               };
 
-              // Em produção, isso deve ser um Batch Write (Transação)
-              await setDoc(doc(db, COLLECTIONS.CLINICS, newTenantId), newClinic);
+              // CORREÇÃO: Salvar o Usuário PRIMEIRO para validar as regras do Firebase
               await setDoc(userDocRef, initialProfile);
+
+              // DEPOIS salva a clínica (agora as regras vão encontrar o perfil admin)
+              await setDoc(doc(db, COLLECTIONS.CLINICS, newTenantId), newClinic);
 
               setRole('admin');
               setUserProfile(initialProfile);
@@ -99,7 +101,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } catch (err) {
             console.error('[AuthContext] Erro ao carregar perfil:', err);
+            // Trava de segurança: Garante que o sistema não trave se a internet cair
             setRole('admin');
+            setTenantId(`tenant_${firebaseUser.uid}`);
           }
         } else {
           setUser(null);
@@ -186,7 +190,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePixKey = (newPixKey: string) => {
-    // Em produção, isso atualizará o documento doc(db, 'clinics', tenantId)
     console.log('Update PIX key for tenant:', tenantId, newPixKey);
   };
 

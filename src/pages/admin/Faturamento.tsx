@@ -14,7 +14,8 @@ import { formatCurrency, formatPhone, formatDateBR } from '../../utils/formatter
 import { gerarLinkCobrancaWhatsApp } from '../../utils/whatsappGenerator.ts';
 import { useData } from '../../contexts/DataContext.tsx';
 import type { Invoice } from '../../services/collections.ts';
-import { fetchBillingReport, BillingSummary } from '../../services/reportService.ts'; import { exportReportPDF } from '../../utils/pdfGenerator.ts';
+import { fetchBillingReport, BillingSummary } from '../../services/reportService.ts';
+import { exportReportPDF } from '../../utils/pdfGenerator.ts';
 import { startOfWeek, subDays, startOfMonth, endOfMonth, format } from 'date-fns';
 
 export const Faturamento: React.FC = () => {
@@ -119,14 +120,63 @@ export const Faturamento: React.FC = () => {
     }
   };
 
+  // 3. NOVA FUNÇÃO DE EXPORTAÇÃO ASSÍNCRONA
+  // NOVA FUNÇÃO DE EXPORTAÇÃO (Síncrona e baseada na tela)
   const handleExportPDF = () => {
+    if (filteredInvoices.length === 0) {
+      alert("Não há dados para exportar neste filtro.");
+      return;
+    }
+
+    // 1. Agrupa as faturas que estão aparecendo na tela por paciente
+    const summaryMap = new Map<string, BillingSummary>();
+
+    filteredInvoices.forEach(inv => {
+      if (!summaryMap.has(inv.patientId)) {
+        summaryMap.set(inv.patientId, {
+          patientId: inv.patientId,
+          patientName: inv.patientName,
+          patientPhone: inv.patientPhone,
+          totalSessions: 0,
+          totalAmount: 0,
+          sessionDates: []
+        });
+      }
+
+      const summary = summaryMap.get(inv.patientId)!;
+      // Soma corretamente as sessões e os valores reais lançados na tela
+      summary.totalSessions += inv.sessionsCount;
+      summary.totalAmount += inv.amount;
+
+      // Adiciona as datas para aparecerem no PDF
+      if (inv.dueDate && !summary.sessionDates.includes(inv.dueDate)) {
+        summary.sessionDates.push(inv.dueDate);
+      }
+    });
+
+    const dadosParaPDF = Array.from(summaryMap.values());
+
+    // 2. Monta o título do PDF indicando o Filtro (Ex: "Mensal - A Receber")
     const periodTitles = {
       weekly: 'Semanal',
       biweekly: 'Quinzenal',
       monthly: 'Mensal'
     };
-    exportReportPDF(summaries, periodTitles[period]);
+
+    let tituloFiltro = "";
+    if (filter === 'pago') tituloFiltro = " - Recebidos";
+    else if (filter === 'pendente') tituloFiltro = " - A Receber";
+    else if (filter === 'atrasado') tituloFiltro = " - Em Atraso";
+
+    const tituloFinal = `${periodTitles[period]}${tituloFiltro}`;
+
+    // 3. Envia os dados perfeitamente agregados para o gerador
+    exportReportPDF(dadosParaPDF, tituloFinal);
+
   };
+
+
+
 
   return (
     <div className="space-y-4">
@@ -288,8 +338,6 @@ export const Faturamento: React.FC = () => {
         )}
       </div>
 
-      {/* Botão flutuante para mobile Exportar PDF se necessário, ou já está no topo? 
-          Já está no topo, visível com 'hidden sm:flex', podemos deixar disponível sempre */}
       <div className="sm:hidden flex justify-end mt-4">
         <Button
           variant="outline"

@@ -4,6 +4,9 @@ import { formatCurrency, formatDateBR } from './formatters.ts';
 import { BillingSummary } from '../services/reportService.ts';
 
 export const exportReportPDF = (summaryData: BillingSummary[], periodTitle: string) => {
+  // SUGESTÃO DE DEBUG: Imprime os dados recebidos no console do navegador
+  console.log("Debug PDF - Dados recebidos para exportação:", summaryData);
+
   const doc = new jsPDF();
 
   doc.setFontSize(18);
@@ -16,16 +19,18 @@ export const exportReportPDF = (summaryData: BillingSummary[], periodTitle: stri
   const tableColumn = ["Paciente", "Sessões", "Datas", "Valor Devido"];
   const tableRows: any[][] = [];
 
+  // Se summaryData estiver vazio, este loop não executa, resultando na tabela vazia
   summaryData.forEach(summary => {
-    const datesFormatted = summary.sessionDates
+    // É importante garantir também que sessionDates seja um array válido para não dar erro no .map
+    const datesFormatted = (summary.sessionDates || [])
       .map(date => formatDateBR(date))
       .join(', ');
 
     const rowData = [
-      summary.patientName,
-      summary.totalSessions.toString(),
+      summary.patientName || "N/A",
+      summary.totalSessions ? summary.totalSessions.toString() : "0",
       datesFormatted,
-      formatCurrency(summary.totalAmount),
+      formatCurrency(summary.totalAmount || 0),
     ];
     tableRows.push(rowData);
   });
